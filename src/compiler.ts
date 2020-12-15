@@ -32,7 +32,6 @@ export const compile: Compiler = src => {
 
 export const runtime: Runtime = async (src, env: any) => {
     const wasm = compile(src);
-    console.log(hexdump(wasm));
     const result: any = await WebAssembly.instantiate(wasm, { env });
     return () => {
         result.instance.exports.run();

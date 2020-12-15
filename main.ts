@@ -1,9 +1,16 @@
-import { runtime } from "./src/compiler.ts";
+import { compile } from "./src/compiler.ts";
 
-let tick = await runtime("print 323", {
-    print: value => {
-        console.log(value);
+let program = await Deno.readTextFile("test.chasm");
+const wasm = compile(program);
+await Deno.writeFile("out.wasm", wasm);
+
+let importObj = {
+    env: {
+        print: value => {
+            console.log(value);
+        },
     },
-});
+};
 
-tick();
+const result: any = await WebAssembly.instantiate(wasm, importObj);
+result.instance.exports.run();

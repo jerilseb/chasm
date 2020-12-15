@@ -1,3 +1,4 @@
+// @ts-nocheck
 export function hexdump(ab, offset?, len?, opts?) {
     if (!opts) {
         opts = {};

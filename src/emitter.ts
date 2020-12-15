@@ -57,7 +57,10 @@ const moduleVersion = [0x01, 0x00, 0x00, 0x00];
 
 // https://webassembly.github.io/spec/core/binary/conventions.html#binary-vec
 // Vectors are encoded with their length followed by their element sequence
-const encodeVector = (data: any[]): number[] => [unsignedLEB128(data.length), ...flatten(data)];
+const encodeVector = (data: any[]): number[] => {
+    let vector = [...unsignedLEB128(data.length), ...flatten(data)];
+    return vector;
+}
 
 // https://webassembly.github.io/spec/core/binary/modules.html#sections
 // sections are encoded by their type followed by their vector contents

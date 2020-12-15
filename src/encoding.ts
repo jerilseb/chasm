@@ -1,7 +1,6 @@
 export const ieee754 = (n: number) => {
     const buffer = new ArrayBuffer(4);
-    let view = new DataView(buffer, 0, buffer.byteLength);
-    view.setFloat32(0, n);
+    new DataView(buffer).setFloat32(0, n, true);
     return new Uint8Array(buffer);
 };
 

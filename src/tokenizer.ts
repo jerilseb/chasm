@@ -4,7 +4,7 @@ interface Tokenizer {
 
 type TokenType = "number" | "keyword" | "whitespace";
 
-interface Token {
+export interface Token {
     type: TokenType;
     value: string;
     line?: number;
@@ -49,11 +49,12 @@ const locationForIndex = (input: string, index: number) => ({
     line: input.substring(0, index).split("\n").length - 1,
 });
 
-export const tokenize: Tokenizer = (input) => {
+export const tokenize: Tokenizer = input => {
     const tokens: Token[] = [];
     let index = 0;
+
     while (index < input.length) {
-        const matches = matchers.map((m) => m(input, index)).filter((f) => f);
+        const matches = matchers.map(m => m(input, index)).filter(f => f !== null) as Token[];
         if (matches.length > 0) {
             // take the highest priority match
             const match = matches[0];

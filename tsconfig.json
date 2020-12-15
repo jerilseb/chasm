@@ -1,11 +1,9 @@
 {
   "compilerOptions": {
-    "outDir": "./built",
     "allowJs": true,
     "lib": ["es2017", "dom"],
-    "module": "commonjs",
-    "target": "es2017",
-    "noImplicitAny": false
+    "noImplicitAny": false,
+    "strictNullChecks": false
   },
-  "include": ["./src/**/*", "./__tests__/**/*"]
+  "include": ["./src/**/*"]
 }

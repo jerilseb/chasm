@@ -1,24 +1,22 @@
 export const ieee754 = (n: number) => {
-    const buf = Buffer.allocUnsafe(4);
-    buf.writeFloatLE(n, 0);
-    return Uint8Array.from(buf);
+    const buffer = new ArrayBuffer(4);
+    let view = new DataView(buffer, 0, buffer.byteLength);
+    view.setFloat32(0, n);
+    return new Uint8Array(buffer);
 };
 
-export const encodeString = (str: string) => [
+export const encodeString = (str: string): number[] => [
     str.length,
-    ...str.split("").map((s) => s.charCodeAt(0)),
+    ...str.split("").map(s => s.charCodeAt(0)),
 ];
 
 export const signedLEB128 = (n: number) => {
-    const buffer = [];
+    const buffer: number[] = [];
     let more = true;
     while (more) {
         let byte = n & 0x7f;
         n >>>= 7;
-        if (
-            (n === 0 && (byte & 0x40) === 0) ||
-            (n === -1 && (byte & 0x40) !== 0)
-        ) {
+        if ((n === 0 && (byte & 0x40) === 0) || (n === -1 && (byte & 0x40) !== 0)) {
             more = false;
         } else {
             byte |= 0x80;
@@ -29,7 +27,7 @@ export const signedLEB128 = (n: number) => {
 };
 
 export const unsignedLEB128 = (n: number) => {
-    const buffer = [];
+    const buffer: number[] = [];
     do {
         let byte = n & 0x7f;
         n >>>= 7;

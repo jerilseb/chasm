@@ -22,7 +22,7 @@ interface Matcher {
     (input: string, index: number): Token | null;
 }
 
-export const keywords = ["print", "var"];
+export const keywords = ["print", "var", "while", "endwhile"];
 export const operators = ["+", "-", "*", "/", "==", "<", ">", "&&"];
 
 const escapeRegEx = (text: string) => text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");

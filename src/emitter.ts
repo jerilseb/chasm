@@ -1,5 +1,5 @@
-import { unsignedLEB128, encodeString, ieee754 } from "./encoding.ts";
-import { Program, ProgramNode, ExpressionNode } from "./parser.ts";
+import { unsignedLEB128, encodeString, signedLEB128, ieee754 } from "./encoding.ts";
+import { Program, ProgramNode, ExpressionNode, StatementNode } from "./parser.ts";
 
 interface Emitter {
     (ast: Program): Uint8Array;
@@ -37,13 +37,23 @@ enum Valtype {
     f32 = 0x7d,
 }
 
+// https://webassembly.github.io/spec/core/binary/types.html#binary-blocktype
+enum Blocktype {
+    void = 0x40,
+}
+
 // https://webassembly.github.io/spec/core/binary/instructions.html
 enum Opcodes {
+    block = 0x02,
+    loop = 0x03,
+    br = 0x0c,
+    br_if = 0x0d,
     end = 0x0b,
     call = 0x10,
     get_local = 0x20,
     set_local = 0x21,
     f32_const = 0x43,
+    i32_eqz = 0x45,
     f32_eq = 0x5b,
     f32_lt = 0x5d,
     f32_gt = 0x5e,
@@ -143,20 +153,51 @@ const codeFromAst = (ast: Program) => {
             }
         });
 
-    ast.forEach(statement => {
-        switch (statement.type) {
-            case "printStatement":
-                emitExpression(statement.expression);
-                code.push(Opcodes.call);
-                code.push(...unsignedLEB128(0));
-                break;
-            case "variableDeclaration":
-                emitExpression(statement.initializer);
-                code.push(Opcodes.set_local);
-                code.push(...unsignedLEB128(localIndexForSymbol(statement.name)));
-                break;
-        }
-    });
+    const emitStatements = (statements: StatementNode[]) =>
+        statements.forEach(statement => {
+            switch (statement.type) {
+                case "printStatement":
+                    emitExpression(statement.expression);
+                    code.push(Opcodes.call);
+                    code.push(...unsignedLEB128(0));
+                    break;
+                case "variableDeclaration":
+                    emitExpression(statement.initializer);
+                    code.push(Opcodes.set_local);
+                    code.push(...unsignedLEB128(localIndexForSymbol(statement.name)));
+                    break;
+                case "variableAssignment":
+                    emitExpression(statement.value);
+                    code.push(Opcodes.set_local);
+                    code.push(...unsignedLEB128(localIndexForSymbol(statement.name)));
+                    break;
+                case "whileStatement":
+                    // outer block
+                    code.push(Opcodes.block);
+                    code.push(Blocktype.void);
+                    // inner loop
+                    code.push(Opcodes.loop);
+                    code.push(Blocktype.void);
+                    // compute the while expression
+                    emitExpression(statement.expression);
+                    code.push(Opcodes.i32_eqz);
+                    // br_if $label0
+                    code.push(Opcodes.br_if);
+                    code.push(...signedLEB128(1));
+                    // the nested logic
+                    emitStatements(statement.statements);
+                    // br $label1
+                    code.push(Opcodes.br);
+                    code.push(...signedLEB128(0));
+                    // end loop
+                    code.push(Opcodes.end);
+                    // end block
+                    code.push(Opcodes.end);
+                    break;
+            }
+        });
+
+    emitStatements(ast);
 
     return { code, localCount: symbols.size };
 };

@@ -15,7 +15,11 @@ export type ExpressionNode = NumberLiteralNode | BinaryExpressionNode | Identifi
 
 // in future we will have multiple statement types, for now
 // just print statements
-type StatementNode = PrintStatementNode | VariableDeclarationNode;
+export type StatementNode =
+    | PrintStatementNode
+    | VariableDeclarationNode
+    | VariableAssignmentNode
+    | WhileStatementNode;
 
 export type Program = StatementNode[];
 
@@ -23,6 +27,12 @@ interface VariableDeclarationNode extends ProgramNode {
     type: "variableDeclaration";
     name: string;
     initializer: ExpressionNode;
+}
+
+interface VariableAssignmentNode extends ProgramNode {
+    type: "variableAssignment";
+    name: string;
+    value: ExpressionNode;
 }
 
 interface NumberLiteralNode extends ProgramNode {
@@ -52,6 +62,12 @@ interface PrintStatementNode extends ProgramNode {
     expression: ExpressionNode;
 }
 
+interface WhileStatementNode extends ProgramNode {
+    type: "whileStatement";
+    expression: ExpressionNode;
+    statements: StatementNode[];
+}
+
 interface ParserStep<T extends ProgramNode> {
     (): T;
 }
@@ -72,6 +88,9 @@ const asOperator = (value: string): Operator => {
 export const parse: Parser = tokens => {
     const tokenIterator = tokens[Symbol.iterator]();
     let currentToken = tokenIterator.next().value;
+
+    const currentTokenIsKeyword = (name: string) =>
+        currentToken.value === name && currentToken.type === "keyword";
 
     const eatToken = (value?: string) => {
         if (value && value !== currentToken.value) {
@@ -123,6 +142,28 @@ export const parse: Parser = tokens => {
         };
     };
 
+    const parseWhileStatement: ParserStep<WhileStatementNode> = () => {
+        eatToken("while");
+
+        const expression = parseExpression();
+
+        const statements: StatementNode[] = [];
+        while (!currentTokenIsKeyword("endwhile")) {
+            statements.push(parseStatement());
+        }
+
+        eatToken("endwhile");
+
+        return { type: "whileStatement", expression, statements };
+    };
+
+    const parseVariableAssignment: ParserStep<VariableAssignmentNode> = () => {
+        const name = currentToken.value;
+        eatToken();
+        eatToken("=");
+        return { type: "variableAssignment", name, value: parseExpression() };
+    };
+
     const parseVariableDeclarationStatement: ParserStep<VariableDeclarationNode> = () => {
         eatToken("var");
         const name = currentToken.value;
@@ -142,9 +183,13 @@ export const parse: Parser = tokens => {
                     return parsePrintStatement();
                 case "var":
                     return parseVariableDeclarationStatement();
+                case "while":
+                    return parseWhileStatement();
                 default:
                     throw new ParserError(`Unknown keyword ${currentToken.value}`, currentToken);
             }
+        } else if (currentToken.type === "identifier") {
+            return parseVariableAssignment();
         }
     };
 

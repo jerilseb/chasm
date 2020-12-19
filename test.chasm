@@ -1,3 +1,5 @@
-var x = 10
-print ((42 + (10 + x)) / 2)
-print (33 + x)
+var f = 0
+while (f < 100)
+  print f
+  f = (f + 3)
+endwhile

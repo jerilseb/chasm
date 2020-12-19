@@ -2,7 +2,7 @@ interface Tokenizer {
     (input: string): Token[];
 }
 
-type TokenType = "number" | "keyword" | "whitespace";
+type TokenType = "number" | "keyword" | "whitespace" | "parens" | "operator";
 
 export interface Token {
     type: TokenType;
@@ -16,6 +16,9 @@ interface Matcher {
 }
 
 export const keywords = ["print"];
+export const operators = ["+", "-", "*", "/", "==", "<", ">", "&&"];
+
+const escapeRegEx = (text: string) => text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
 
 export class TokenizerError extends Error {
     index: number;
@@ -42,6 +45,8 @@ const matchers = [
     regexMatcher("^[.0-9]+", "number"),
     regexMatcher(`^(${keywords.join("|")})`, "keyword"),
     regexMatcher("^\\s+", "whitespace"),
+    regexMatcher(`^(${operators.map(escapeRegEx).join("|")})`, "operator"),
+    regexMatcher("^[()]{1}", "parens"),
 ];
 
 const locationForIndex = (input: string, index: number) => ({

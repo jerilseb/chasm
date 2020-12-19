@@ -1,8 +1,16 @@
 import { unsignedLEB128, encodeString, ieee754 } from "./encoding.ts";
-import { Program, ExpressionNode } from "./parser.ts";
+import { Program, ProgramNode, ExpressionNode } from "./parser.ts";
 
 interface Emitter {
     (ast: Program): Uint8Array;
+}
+
+interface Traverse<E extends ProgramNode> {
+    (nodes: E[] | E, visitor: Visitor<E>): void;
+}
+
+interface Visitor<E> {
+    (node: E): void;
 }
 
 const flatten = (arr: any[]) => [].concat.apply([], arr);
@@ -35,8 +43,26 @@ enum Opcodes {
     call = 0x10,
     get_local = 0x20,
     f32_const = 0x43,
+    f32_eq = 0x5b,
+    f32_lt = 0x5d,
+    f32_gt = 0x5e,
+    i32_and = 0x71,
     f32_add = 0x92,
+    f32_sub = 0x93,
+    f32_mul = 0x94,
+    f32_div = 0x95,
 }
+
+const binaryOpcode = {
+    "+": Opcodes.f32_add,
+    "-": Opcodes.f32_sub,
+    "*": Opcodes.f32_mul,
+    "/": Opcodes.f32_div,
+    "==": Opcodes.f32_eq,
+    ">": Opcodes.f32_gt,
+    "<": Opcodes.f32_lt,
+    "&&": Opcodes.i32_and,
+};
 
 // http://webassembly.github.io/spec/core/binary/modules.html#export-section
 enum ExportType {
@@ -60,7 +86,7 @@ const moduleVersion = [0x01, 0x00, 0x00, 0x00];
 const encodeVector = (data: any[]): number[] => {
     let vector = [...unsignedLEB128(data.length), ...flatten(data)];
     return vector;
-}
+};
 
 // https://webassembly.github.io/spec/core/binary/modules.html#sections
 // sections are encoded by their type followed by their vector contents
@@ -69,17 +95,37 @@ const createSection = (sectionType: Section, data: any[]): number[] => [
     ...encodeVector(data),
 ];
 
+const traverse: Traverse<ExpressionNode> = (nodes, visitor) => {
+    nodes = Array.isArray(nodes) ? nodes : [nodes];
+    nodes.forEach(node => {
+        Object.keys(node).forEach(prop => {
+            const value = node[prop];
+            const valueAsArray: string[] = Array.isArray(value) ? value : [value];
+            valueAsArray.forEach((childNode: any) => {
+                if (typeof childNode.type === "string") {
+                    traverse(childNode, visitor);
+                }
+            });
+        });
+        visitor(node);
+    });
+};
+
 const codeFromAst = (ast: Program) => {
     const code: number[] = [];
 
-    const emitExpression = (node: ExpressionNode) => {
-        switch (node.type) {
-            case "numberLiteral":
-                code.push(Opcodes.f32_const);
-                code.push(...ieee754(node.value));
-                break;
-        }
-    };
+    const emitExpression = (node: ExpressionNode) =>
+        traverse(node, (node: ExpressionNode) => {
+            switch (node.type) {
+                case "numberLiteral":
+                    code.push(Opcodes.f32_const);
+                    code.push(...ieee754(node.value));
+                    break;
+                case "binaryExpression":
+                    code.push(binaryOpcode[node.operator]);
+                    break;
+            }
+        });
 
     ast.forEach(statement => {
         switch (statement.type) {

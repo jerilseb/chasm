@@ -4,13 +4,14 @@ interface Parser {
     (tokens: Token[]): Program;
 }
 
-interface ProgramNode {
+export interface ProgramNode {
     type: string;
 }
 
+type Operator = "+" | "-" | "/" | "*" | "==" | ">" | "<" | "&&";
 // in future we will have multiple expression types, for now
 // just number literals
-export type ExpressionNode = NumberLiteralNode;
+export type ExpressionNode = NumberLiteralNode | BinaryExpressionNode;
 
 // in future we will have multiple statement types, for now
 // just print statements
@@ -21,6 +22,13 @@ export type Program = StatementNode[];
 interface NumberLiteralNode extends ProgramNode {
     type: "numberLiteral";
     value: number;
+}
+
+interface BinaryExpressionNode extends ProgramNode {
+    type: "binaryExpression";
+    left: ExpressionNode;
+    right: ExpressionNode;
+    operator: Operator;
 }
 
 interface IdentifierNode extends ProgramNode {
@@ -45,11 +53,24 @@ export class ParserError extends Error {
     }
 }
 
+const asOperator = (value: string): Operator => {
+    // TODO: check it really is an operator
+    return value as Operator;
+};
+
 export const parse: Parser = tokens => {
     const tokenIterator = tokens[Symbol.iterator]();
     let currentToken = tokenIterator.next().value;
 
-    const eatToken = () => (currentToken = tokenIterator.next().value);
+    const eatToken = (value?: string) => {
+        if (value && value !== currentToken.value) {
+            throw new ParserError(
+                `Unexpected token value, expected ${value}, received ${currentToken.value}`,
+                currentToken
+            );
+        }
+        currentToken = tokenIterator.next().value;
+    };
 
     const parseExpression: ParserStep<ExpressionNode> = () => {
         let node: ExpressionNode;
@@ -61,6 +82,21 @@ export const parse: Parser = tokens => {
                 };
                 eatToken();
                 return node;
+            case "parens":
+                eatToken("(");
+                const left = parseExpression();
+                const operator = currentToken.value;
+                eatToken();
+                const right = parseExpression();
+                eatToken(")");
+                return {
+                    type: "binaryExpression",
+                    left,
+                    right,
+                    operator: asOperator(operator),
+                };
+            default:
+                throw new ParserError(`Unexpected token type ${currentToken.type}`, currentToken);
         }
     };
 

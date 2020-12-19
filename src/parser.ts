@@ -11,17 +11,28 @@ export interface ProgramNode {
 type Operator = "+" | "-" | "/" | "*" | "==" | ">" | "<" | "&&";
 // in future we will have multiple expression types, for now
 // just number literals
-export type ExpressionNode = NumberLiteralNode | BinaryExpressionNode;
+export type ExpressionNode = NumberLiteralNode | BinaryExpressionNode | IdentifierNode;
 
 // in future we will have multiple statement types, for now
 // just print statements
-type StatementNode = PrintStatementNode;
+type StatementNode = PrintStatementNode | VariableDeclarationNode;
 
 export type Program = StatementNode[];
+
+interface VariableDeclarationNode extends ProgramNode {
+    type: "variableDeclaration";
+    name: string;
+    initializer: ExpressionNode;
+}
 
 interface NumberLiteralNode extends ProgramNode {
     type: "numberLiteral";
     value: number;
+}
+
+interface IdentifierNode extends ProgramNode {
+    type: "identifier";
+    value: string;
 }
 
 interface BinaryExpressionNode extends ProgramNode {
@@ -95,20 +106,44 @@ export const parse: Parser = tokens => {
                     right,
                     operator: asOperator(operator),
                 };
+            case "identifier":
+                node = { type: "identifier", value: currentToken.value };
+                eatToken();
+                return node;
             default:
                 throw new ParserError(`Unexpected token type ${currentToken.type}`, currentToken);
         }
+    };
+
+    const parsePrintStatement: ParserStep<PrintStatementNode> = () => {
+        eatToken("print");
+        return {
+            type: "printStatement",
+            expression: parseExpression(),
+        };
+    };
+
+    const parseVariableDeclarationStatement: ParserStep<VariableDeclarationNode> = () => {
+        eatToken("var");
+        const name = currentToken.value;
+        eatToken();
+        eatToken("=");
+        return {
+            type: "variableDeclaration",
+            name,
+            initializer: parseExpression(),
+        };
     };
 
     const parseStatement: ParserStep<StatementNode> = () => {
         if (currentToken.type === "keyword") {
             switch (currentToken.value) {
                 case "print":
-                    eatToken();
-                    return {
-                        type: "printStatement",
-                        expression: parseExpression(),
-                    };
+                    return parsePrintStatement();
+                case "var":
+                    return parseVariableDeclarationStatement();
+                default:
+                    throw new ParserError(`Unknown keyword ${currentToken.value}`, currentToken);
             }
         }
     };

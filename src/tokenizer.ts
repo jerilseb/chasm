@@ -2,7 +2,14 @@ interface Tokenizer {
     (input: string): Token[];
 }
 
-type TokenType = "number" | "keyword" | "whitespace" | "parens" | "operator";
+type TokenType =
+    | "number"
+    | "keyword"
+    | "whitespace"
+    | "parens"
+    | "operator"
+    | "identifier"
+    | "assignment";
 
 export interface Token {
     type: TokenType;
@@ -15,7 +22,7 @@ interface Matcher {
     (input: string, index: number): Token | null;
 }
 
-export const keywords = ["print"];
+export const keywords = ["print", "var"];
 export const operators = ["+", "-", "*", "/", "==", "<", ">", "&&"];
 
 const escapeRegEx = (text: string) => text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, "\\$&");
@@ -46,6 +53,8 @@ const matchers = [
     regexMatcher(`^(${keywords.join("|")})`, "keyword"),
     regexMatcher("^\\s+", "whitespace"),
     regexMatcher(`^(${operators.map(escapeRegEx).join("|")})`, "operator"),
+    regexMatcher(`^[a-z]`, "identifier"),
+    regexMatcher(`^=`, "assignment"),
     regexMatcher("^[()]{1}", "parens"),
 ];
 
